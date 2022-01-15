@@ -11,10 +11,9 @@ from zoneinfo import ZoneInfo
 INDEX_PATH = ".journal_index.pkl"
 
 def main():
-    a, b = load_indexes(INDEX_PATH)
-    a['test tag'] = {'test1', 'test2'}
-    a['test tag 2'] = {'test2', 'test1'}
-    return_indexes(INDEX_PATH, a, b)
+    add_tags('Jan-15-2022', ['t1'])
+    get_tags('Jan-15-2022')
+    get_tags('test1')
 
 
 def load_indexes(path: str) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
@@ -54,7 +53,7 @@ def create_log() -> None:
 def delete_log(log_name: str) -> None:
     a, b = load_indexes(INDEX_PATH)
     if log_name not in b.keys():
-        print(f'Log {log_name} doesn\'t exist')
+        print(f'{log_name} doesn\'t exist')
     else:
         tags = b[log_name]
         for tag in tags:
@@ -73,6 +72,44 @@ def open_log(log_name: str) -> None:
     else:
         print(f'Opening log at {path}')
         subprocess.run(['open', '-e', f'{path}'])
+
+def get_tags(log: str) -> None:
+    a, b = load_indexes(INDEX_PATH)
+    if log not in b.keys():
+        print(f'{log} doesn\'t exist')
+        return
+    
+    print(f'{log} --| {tags_list_string(list(b[log]))}')
+
+def remove_tags(log: str, tags: list[str]) -> None:
+    a, b = load_indexes(INDEX_PATH)
+    if log not in b.keys():
+        print(f'{log} doesn\'t exist')
+        return
+    
+    for tag in tags:
+        b[log].discard(tag)
+        if tag in a.keys():
+            a[tag].discard(log)
+
+    return_indexes(INDEX_PATH, a, b)
+    print(f'{log} --| {tags_list_string(list(b[log]))}')
+
+def add_tags(log: str, tags: list[str]) -> None:
+    a, b = load_indexes(INDEX_PATH)
+    if log not in b.keys():
+        print(f'{log} doesn\'t exist')
+        return
+    
+    for tag in tags:
+        b[log].add(tag)
+        if tag not in a.keys():
+            a[tag] = set()
+        a[tag].add(log)
+    
+    print(a)
+    return_indexes(INDEX_PATH, a, b)
+    print(f'{log} --| {tags_list_string(list(b[log]))}')
 
 def find_logs(tags: list[str]) -> None:
     a, b = load_indexes(INDEX_PATH)
@@ -114,9 +151,12 @@ def set_timezone(timezone: str) -> None:
         print(f'Local timezone set to {timezone}')
 
 def tags_list_string(tags: list[str]) -> str:
+    if len(tags) == 0:
+        return ''
+
     res = f'[{tags[0]}]'
     for tag in tags[1:]:
-        res += f', [{tag}]'
+        res += f' [{tag}]'
     return res
 
 def get_location_from_log_name(log_name: str) -> str:
