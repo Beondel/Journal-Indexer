@@ -1,0 +1,13 @@
+LICENSE
+README.md
+pyproject.toml
+setup.py
+Journal_Indexer/__init__.py
+Journal_Indexer/journal_command_runner.py
+Journal_Indexer.egg-info/PKG-INFO
+Journal_Indexer.egg-info/SOURCES.txt
+Journal_Indexer.egg-info/dependency_links.txt
+Journal_Indexer.egg-info/entry_points.txt
+Journal_Indexer.egg-info/not-zip-safe
+Journal_Indexer.egg-info/requires.txt
+Journal_Indexer.egg-info/top_level.txt

@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: Journal-Indexer
+Version: 1.0
+Summary: lightweight journal index which allows entries to be tagged
+Home-page: https://github.com/Beondel/Journal-Indexer
+Author: Ben MacMillan
+Author-email: bengmacmillan@gmail.com
+License: MIT
+Platform: UNKNOWN
+License-File: LICENSE
+
+see readme
+

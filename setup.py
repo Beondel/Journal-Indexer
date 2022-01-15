@@ -1,9 +1,9 @@
 from setuptools import setup
 
 setup(name='Journal_Indexer',
-      version='0.2',
+      version='1.0',
       description="lightweight journal index which allows entries to be tagged",
-      long_description='https://github.com/Beondel/Journal-Indexer/blob/main/README.md',
+      long_description='see readme',
       classifiers=[],
       keywords='',
       author='Ben MacMillan',

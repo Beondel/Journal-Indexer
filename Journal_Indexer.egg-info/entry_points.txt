@@ -1,0 +1,5 @@
+
+      # -*- Entry points: -*-
+      [console_scripts]
+      journal = Journal_Indexer.journal_command_runner:main
+      
