@@ -7,38 +7,106 @@ import sys
 import zoneinfo
 import _pickle as pickle
 from zoneinfo import ZoneInfo
+import argparse
 
 INDEX_PATH = ".journal_index.pkl"
+CONFIG_PATH = ".journal_config.ipi"
+TODAY = ""
 
 def main():
-    add_tags('Jan-15-2022', ['t1'])
-    get_tags('Jan-15-2022')
-    get_tags('test1')
+    try:
+        load_config()
+        config = configparser.ConfigParser()
+        config.read(CONFIG_PATH)
+        TODAY = datetime.now(ZoneInfo(config['datetime']['timezone'])).strftime("%b-%d-%Y")
 
+        parser = argparse.ArgumentParser()
+        parser.add_argument('action', type=str)
+        parser.add_argument('--log', type=str)
+        parser.add_argument('--tags', type=str, nargs='+')
+        args = parser.parse_args()
 
-def load_indexes(path: str) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
-    if os.path.isfile(path):
-        with open(path, 'rb') as f:
+        if args.action == 'create':
+            create_log()
+            exit()
+        if args.action == 'delete':
+            delete_log(args.log if args.log else TODAY)
+            exit()
+        if args.action == 'open':
+            open_log(args.log if args.log else TODAY)
+            exit()
+        if args.action == 'find':
+            if not args.tags:
+                help()
+                exit()
+            find_logs(args.tags)
+            exit()
+        if args.action == 'get':
+            get_tags(args.log if args.log else TODAY)
+            exit()
+        if args.action == 'add-tags':
+            if not args.tags:
+                help()
+                exit()
+            add_tags(args.log if args.log else TODAY, args.tags)
+            exit()
+        if args.action == 'remove-tags':
+            if not args.tags:
+                help()
+                exit()
+            remove_tags(args.log if args.log else TODAY, args.tags)
+            exit()
+        if args.action == 'help':
+            help()
+            exit()
+        else:
+            help()
+    except Exception as e:
+        help()
+        raise(e)
+
+def help():
+    print('Available commands (log names are the in the form of Month-Day-Year and use the 3 letter month convention, e.g: Aug-04-1997)')
+    print('journal create - creates a new journal entry for the day')
+    print('journal delete <logname> - deletes the specified log')
+    print('journal open <logname> - opens the specified log for reading and editing')
+    print('journal find <tag1> <tag2> <tag3> ... - finds journals which contain ALL of the specified tags; tags can be numerous')
+    print('journal get <logname> - prints the log and its associated tags')
+    print('journal add-tags [--log <logname>] <tag1> <tag2> <tag3> ... - adds the specified tags to today\'s log, can optionally specify a particular log with --log; tags can be numerous')
+    print('journal remove-tags [--log <logname>] <tag1> <tag2> <tag3> ... - removes the specified tags from today\'s log, can optionally specify a particular log with --log; tags can be numerous')
+    print('journal help - print this')
+
+def load_indexes() -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    if os.path.isfile(INDEX_PATH):
+        with open(INDEX_PATH, 'rb') as f:
             dict_a = pickle.load(f)
             dict_b = pickle.load(f)
             return dict_a, dict_b
     else:
         return {}, {}
 
-# dictionary a: mappings from tag to filenames
-# dictionary b: mappings from filename to tags
-def return_indexes(path: str, dict_a: dict[str, list[str]], dict_b: dict[str, list[str]]) -> None:
-    with open(path, 'wb+') as f:
+def return_indexes(dict_a: dict[str, list[str]], dict_b: dict[str, list[str]]) -> None:
+    with open(INDEX_PATH, 'wb+') as f:
         pickle.dump(dict_a, f)
         pickle.dump(dict_b, f)
 
+def load_config():
+    if not os.path.isfile(CONFIG_PATH):
+        subprocess.run(['touch', f'{CONFIG_PATH}'])
+        config = configparser.ConfigParser()
+        config['datetime'] = {'timezone': 'America/New_York'}
+        
+        with open(CONFIG_PATH, 'w') as config_file:
+            config.write(config_file)
+
 def create_log() -> None:
+    
     config = configparser.ConfigParser()
-    config.read(".config.ini")
+    config.read(CONFIG_PATH)
     log_name = datetime.now(ZoneInfo(config['datetime']['timezone'])).strftime("%b-%d-%Y")
     log_location = get_location_from_log_name(log_name)
     
-    a, b = load_indexes(INDEX_PATH)
+    a, b = load_indexes()
     if log_name not in b.keys():
         b[log_name] = set()
         print(f"Added new log {log_name}")
@@ -48,10 +116,10 @@ def create_log() -> None:
     makedirs(log_location, exist_ok=True)
     subprocess.run(['touch', f'{log_location}/{log_name}'])
     subprocess.run(['open', '-e', f'{log_location}/{log_name}'])
-    return_indexes(INDEX_PATH, a, b)
+    return_indexes(a, b)
 
 def delete_log(log_name: str) -> None:
-    a, b = load_indexes(INDEX_PATH)
+    a, b = load_indexes()
     if log_name not in b.keys():
         print(f'{log_name} doesn\'t exist')
     else:
@@ -60,9 +128,12 @@ def delete_log(log_name: str) -> None:
             if tag in a.keys():
                 a[tag].remove(log_name)
         del b[log_name]
+
+        subprocess.run(['rm', f'{get_location_from_log_name(log_name)}/{log_name}'])
+
         print(f'Deleted log {log_name}')
     
-    return_indexes(INDEX_PATH, a, b)
+    return_indexes(a, b)
 
 def open_log(log_name: str) -> None:
     log_location = get_location_from_log_name(log_name)
@@ -74,7 +145,7 @@ def open_log(log_name: str) -> None:
         subprocess.run(['open', '-e', f'{path}'])
 
 def get_tags(log: str) -> None:
-    a, b = load_indexes(INDEX_PATH)
+    a, b = load_indexes()
     if log not in b.keys():
         print(f'{log} doesn\'t exist')
         return
@@ -82,7 +153,7 @@ def get_tags(log: str) -> None:
     print(f'{log} --| {tags_list_string(list(b[log]))}')
 
 def remove_tags(log: str, tags: list[str]) -> None:
-    a, b = load_indexes(INDEX_PATH)
+    a, b = load_indexes()
     if log not in b.keys():
         print(f'{log} doesn\'t exist')
         return
@@ -92,11 +163,11 @@ def remove_tags(log: str, tags: list[str]) -> None:
         if tag in a.keys():
             a[tag].discard(log)
 
-    return_indexes(INDEX_PATH, a, b)
+    return_indexes(a, b)
     print(f'{log} --| {tags_list_string(list(b[log]))}')
 
 def add_tags(log: str, tags: list[str]) -> None:
-    a, b = load_indexes(INDEX_PATH)
+    a, b = load_indexes()
     if log not in b.keys():
         print(f'{log} doesn\'t exist')
         return
@@ -107,12 +178,11 @@ def add_tags(log: str, tags: list[str]) -> None:
             a[tag] = set()
         a[tag].add(log)
     
-    print(a)
-    return_indexes(INDEX_PATH, a, b)
+    return_indexes(a, b)
     print(f'{log} --| {tags_list_string(list(b[log]))}')
 
 def find_logs(tags: list[str]) -> None:
-    a, b = load_indexes(INDEX_PATH)
+    a, b = load_indexes()
     logs = []
     bad_tag = False
     for tag in tags:
@@ -129,23 +199,19 @@ def find_logs(tags: list[str]) -> None:
     for log in logs:
         res = res.intersection(log)
 
-    print(f'Logs with tags {tags_list_string(tags)}:')
     for log in res:
-        print(log)
-    
-
-def help():
-    pass
+        print(f'{log} --| {tags_list_string(list(b[log]))}')
 
 def set_timezone(timezone: str) -> None:
+    load_config()
     if timezone not in zoneinfo.available_timezones():
         print(f'{timezone} is not a valid timezone by the IANA standard. Please refer to https://en.wikipedia.org/w/index.php?title=List_of_tz_database_time_zones for a list of valid timezones (use one from the "TZ database name" column)')
     else:
         config = configparser.ConfigParser()
-        config.read(".config.ini")
+        config.read(CONFIG_PATH)
         config['datetime']['timezone'] = timezone
 
-        with open('.config.ini', 'w') as config_file:
+        with open(CONFIG_PATH, 'w') as config_file:
             config.write(config_file)
 
         print(f'Local timezone set to {timezone}')
